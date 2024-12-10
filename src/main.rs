@@ -1,6 +1,6 @@
 use crossterm::{
     execute,
-    style::{Color, ResetColor, SetBackgroundColor},
+    style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor},
     event::{self, Event, KeyCode},
     terminal::{self, ClearType, enable_raw_mode, disable_raw_mode},
     cursor,
@@ -19,15 +19,13 @@ struct Task {
 const FILE_PATH: &str = "tasks.json";
 
 fn main() -> std::io::Result<()> {
-    enable_raw_mode()?; // Enable raw mode
+    enable_raw_mode()?; // Enable raw mode for better input handling
     let mut tasks = load_tasks();
     let mut selected_index = 0;
 
     loop {
-        // Render the menu
         render_menu(&tasks, selected_index)?;
 
-        // Wait for user input
         if let Event::Key(event) = event::read()? {
             match event.code {
                 KeyCode::Up => {
@@ -41,19 +39,16 @@ fn main() -> std::io::Result<()> {
                     }
                 }
                 KeyCode::Char(' ') => {
-                    // Toggle completion status
                     if let Some(task) = tasks.get_mut(selected_index) {
                         task.completed = !task.completed;
                     }
                     save_tasks(&tasks);
                 }
                 KeyCode::Char('a') => {
-                    // Add a new task
                     add_task(&mut tasks);
                     save_tasks(&tasks);
                 }
                 KeyCode::Char('d') => {
-                    // Delete the selected task
                     if !tasks.is_empty() {
                         tasks.remove(selected_index);
                         if selected_index > 0 {
@@ -63,9 +58,7 @@ fn main() -> std::io::Result<()> {
                     }
                 }
                 KeyCode::Esc | KeyCode::Char('q') => {
-                    // Exit the program
                     save_tasks(&tasks);
-                    println!("Goodbye!");
                     break;
                 }
                 _ => {}
@@ -73,11 +66,12 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    disable_raw_mode()?; // Disable raw mode
+    disable_raw_mode()?; // Restore terminal mode before exiting
     Ok(())
 }
 
 fn render_menu(tasks: &[Task], selected_index: usize) -> std::io::Result<()> {
+    // Clear the screen and move the cursor to the top-left corner
     execute!(
         io::stdout(),
         terminal::Clear(ClearType::All),
@@ -87,16 +81,28 @@ fn render_menu(tasks: &[Task], selected_index: usize) -> std::io::Result<()> {
     println!("Todo CLI - Use ↑/↓ to navigate, SPACE to toggle done, A to add, D to delete, Q to quit\n");
 
     for (i, task) in tasks.iter().enumerate() {
+        // Format the task status as [✓] or [ ]
+        let status = if task.completed { "[✓]" } else { "[ ]" };
+
+        // Calculate padding for the task description to align the line
+        let padding_width = 1; // Adjust this to set the desired alignment
+        let formatted_task = format!("{:<width$} {}", status, task.description, width = padding_width);
+
+        // Move to the correct line and set highlight if selected
         if i == selected_index {
-            execute!(io::stdout(), SetBackgroundColor(Color::Blue))?;
+            execute!(io::stdout(), SetBackgroundColor(Color::Blue), SetForegroundColor(Color::Black))?;
         }
 
-        let status = if task.completed { "[✓]" } else { "[ ]" };
-        println!("{} {}", status, task.description);
+        // Print the entire line (status and description)
+        print!("{}", formatted_task);
 
+        // Reset color if the task is selected
         if i == selected_index {
             execute!(io::stdout(), ResetColor)?;
         }
+
+        // Print a newline after each task to ensure they appear on separate lines
+        println!();
     }
 
     Ok(())
