@@ -1,4 +1,5 @@
 use ncurses::*;
+use std::cmp::*;
 
 const REGULAR_PAIR: i16 = 0;
 const HIGHLIGHT_PAIR: i16 = 1;
@@ -7,12 +8,12 @@ fn main() {
     initscr();
 
     start_color();
-    init_pair(REGULAR_PAIR, COLOR_WHITE, COLOR_BLACK); // Added semicolon
-    init_pair(HIGHLIGHT_PAIR, COLOR_BLACK, COLOR_WHITE); // Added semicolon
+    init_pair(REGULAR_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(HIGHLIGHT_PAIR, COLOR_BLACK, COLOR_WHITE);
 
     let mut quit = false;
     let todos = vec!["write", "sleep", "coffee"];
-    let mut todo_curr: usize = 0; // Fixed variable name and type
+    let mut todo_curr: usize = 0;
 
     while !quit {
  //       clear(); // Clear the screen before redrawing
@@ -40,7 +41,7 @@ fn main() {
                     todo_curr += 1;
                 }
             }
-            'k' => todo_curr = min(todo_curr + 1, todo.len()),
+            'k' => todo_curr = min(todo_curr + 1, todos.len()),
             _ => {}
         }
     }
