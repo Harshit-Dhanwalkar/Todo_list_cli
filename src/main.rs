@@ -1,5 +1,5 @@
 use ncurses::*;
-use std::cmp::*;
+//use std::cmp::*;
 
 const REGULAR_PAIR: i16 = 0;
 const HIGHLIGHT_PAIR: i16 = 1;
@@ -24,7 +24,7 @@ impl Ui {
         self.list_curr = Some(id);
     }
 
-    fn list_element(&mut self, label: &str, id: Id) {
+    fn list_element(&mut self, label: &str, id: Id) -> bool {
         let id_curr = self.list_curr.expect("Not allowed to create list elements outside of list");
 
         self.label(&format!(label), {
@@ -34,6 +34,8 @@ impl Ui {
                 REGULAR_PAIR
             }
         });
+
+        return false;
     }
 
     fn label(&mut self, text: &str, pait: i16){
@@ -49,6 +51,42 @@ impl Ui {
     }
 }
 
+enum Tab {
+    Todo,
+    Done
+}
+
+impl Tab {
+    fn toggle(&self) -> Self {
+        match self {
+            Tab::Todo => Tab::Done,
+            Tab::Done => Tab::Todo,
+        }
+    }
+}
+
+fn list_up(list_curr: &mut usize) {
+    if *list_curr > 0 {
+       *list_curr -= 1;
+    }
+}
+
+fn list_down(list: &Vec<String>, list_curr: &mut usize) {
+    if *list_curr + 1 < list.len() {
+       *list_curr += 1;
+    }
+}
+
+fn list_transfer(list_dst: &mut Vec<String>, list_curr: &mut Vec<String>, list_scr_curr: &mut usize){
+    if *list_src_curr < list_src.len() {
+        list_dst.push(list_src.remove(list_src_curr));
+        if *list list_src_curr >= list_src.len() && list_src.len() > 0 {
+            *list_src_curr = list_src.len() - 1;
+        }
+    }
+}
+
+
 fn main() {
     initscr();
     noecho();
@@ -59,39 +97,49 @@ fn main() {
     init_pair(HIGHLIGHT_PAIR, COLOR_BLACK, COLOR_WHITE);
 
     let mut quit = false;
-    let todos: Vec<String> = vec![
+    let mut todos: Vec<String> = vec![
         "write".to_string(),
         "sleep".to_string(),
         "coffee".to_string()
     ];
     let mut todo_curr: usize = 0;
-    let dones: Vec<String> = vec![
+    let mut dones: Vec<String> = vec![
         "car".to_string(),
         "man".to_string()
     ];
     let mut done_current: usize = 0;
+    let mut tab = Tab::Todo;
 
     let mut ui = Ui::default();
     while !quit {
+        erase();
  //       clear(); // Clear the screen before redrawing
         ui.begin(0, 0);
         {
-            ui.label("TODO:", REGULAR_PAIR);
-            ui.begin_list(todo_curr);
-            for (index, todo) in todos.iter().enumerate() {
-                ui.list_element(&format!("- [ ] {}", todo), index);
+            Tab::Todo => {
+                ui.label("[TODO] DONE", REGULAR_PAIR);
+                ui.label("-----------", REGULAR_PAIR);
+                ui.begin_list(todo_curr);
+                for (index, todo) in todos.iter().enumerate() {
+                    ui.list_element(&format!("- [ ] {}", todo), index);
+                }
+                ui.end_list();
             }
-            ui.end_list();
+        },
 
-            ui.label("------------------------------", REGULAR_PAIR);
+            //ui.label("------------------------------", REGULAR_PAIR);
 
-            ui.label("DONE:", REGULAR_PAIR);
-            ui.begin_list();
-            for (index, done) in dones.iter().enumerate() {
-                ui.list_element(&format!("- [x] {}", done), index + 6969);
+        {
+            Tab::Done => {
+                ui.label(" TODO [DONE]", REGULAR_PAIR);
+                ui.label("-----------", REGULAR_PAIR);
+                ui.begin_list(done_curr);
+                for (index, done) in dones.iter().enumerate() {
+                    ui.list_element(&format!("- [x] {}", done), index);
+                }
+                ui.end_list();
             }
-            ui.end_list();
-        }
+        },
         ui.end();
 
         refresh();
@@ -99,13 +147,35 @@ fn main() {
         let key = getch();
         match key as u8 as char {
             'q' => quit = true,
-            'j' => {
-                if todo_curr < todos.len() - 1 {
-                    todo_curr += 1;
-                }
+            'j' => match tab {
+                    Tab::Todo => list_up(&mut todo_curr),
+                    Tab::Done => list_up(&mut done_curr),
             }
-            'k' => todo_curr = min(todo_curr + 1, todos.len() -1),
-            _ => {}
+            'k' => match tab {
+                    Tab::Todo => list_down(&todos, &mut todo_curr),
+                    Tab::Done => list_down(&dones, &mut done_curr),
+
+            }
+            '\n' => match tab {
+                Tab::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
+                // if todo_curr < todos.len() {
+                //     dones.push(todo.remove(todo_curr));
+                //     if todo_curr >= todos.len() && todos.en() > 0 {
+                //         todo_curr = todos.len() - 1;
+                //     }
+                Tab::Done => list_transfer(&mut todos, &mut dones, &mut done_curr),
+                // if done_curr < dones.len() {
+                //     todos.push(dones.remove(done_curr));
+                //     if done_curr >= dones.len() && dones.en() > 0 {
+                //         done_curr = dones.len() - 1;
+                //     }
+                // }
+                    //dones.push(todos[todo_curr].clone());
+            }
+            '\t' => {
+                tab = tab.toggle();
+            }
+            _ => {} // if none of above key matches..then do nothing
         }
     }
 
