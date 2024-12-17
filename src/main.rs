@@ -1,4 +1,6 @@
 use ncurses::*;
+use std::fs::File;
+use std::io::Write;
 //use std::cmp::*;
 
 const REGULAR_PAIR: i16 = 0;
@@ -55,18 +57,22 @@ impl Ui {
     }
 }
 
-enum Tab {
+enum Status {
     Todo,
     Done
 }
 
-impl Tab {
+impl Status{
     fn toggle(&self) -> Self {
         match self {
-            Tab::Todo => Tab::Done,
-            Tab::Done => Tab::Todo,
+            Status::Todo => Status::Done,
+            Status::Done => Status::Todo,
         }
     }
+}
+
+fn parse_item(line: &str) -> Option<(Status, &str)> {
+    todo!()
 }
 
 fn list_up(list_curr: &mut usize) {
@@ -95,7 +101,6 @@ fn list_transfer(
 }
 
 
-
 fn main() {
     initscr();
     noecho();
@@ -117,7 +122,7 @@ fn main() {
         "man".to_string()
     ];
     let mut done_curr: usize = 0;
-    let mut tab = Tab::Todo;
+    let mut tab = Status::Todo;
 
     let mut ui = Ui::default();
     while !quit {
@@ -125,7 +130,7 @@ fn main() {
  //       clear(); // Clear the screen before redrawing
         ui.begin(0, 0);
         match tab {
-            Tab::Todo => {
+            Status::Todo => {
                 ui.label("[TODO] DONE", REGULAR_PAIR);
                 ui.label("-----------", REGULAR_PAIR);
                 ui.begin_list(todo_curr, "");
@@ -137,7 +142,7 @@ fn main() {
 
             //ui.label("------------------------------", REGULAR_PAIR);
 
-            Tab::Done => {
+            Status::Done => {
                 ui.label(" TODO [DONE]", REGULAR_PAIR);
                 ui.label("-----------", REGULAR_PAIR);
                 ui.begin_list(done_curr, "");
@@ -154,17 +159,26 @@ fn main() {
         let key = getch();
         match key as u8 as char {
                 'q' => quit = true,
+                'e' => {
+                    let mut file = File::create("TODO").unwrap();
+                    for todo in todos.iter() {
+                        writeln!(file, "TODO: {}", todo);
+                    }
+                    for done in dones.iter() {
+                        writeln!(file, "DONE: {}", done);
+                    }
+                }
                 'k' => match tab {
-                    Tab::Todo => list_up(&mut todo_curr),
-                    Tab::Done => list_up(&mut done_curr),
+                    Status::Todo => list_up(&mut todo_curr),
+                    Status::Done => list_up(&mut done_curr),
                 },
                 'j' => match tab {
-                    Tab::Todo => list_down(&todos, &mut todo_curr),
-                    Tab::Done => list_down(&dones, &mut done_curr),
+                    Status::Todo => list_down(&todos, &mut todo_curr),
+                    Status::Done => list_down(&dones, &mut done_curr),
                 },
                 '\n' => match tab {
-                    Tab::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
-                    Tab::Done => list_transfer(&mut todos, &mut dones, &mut done_curr),
+                    Status::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
+                    Status::Done => list_transfer(&mut todos, &mut dones, &mut done_curr),
                 },
             // '\n' => match tab {
                 // if todo_curr < todos.len() {
