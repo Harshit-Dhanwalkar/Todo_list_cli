@@ -19,7 +19,12 @@ impl Ui {
         self.col = col;
     }
 
-    fn begin_list(&mut self, id: Id, prefix: &str) {
+    fn end(&mut self) {
+        self.row = 0;
+        self.col = 0;
+    }
+
+    fn begin_list(&mut self, id: Id, _prefix: &str) {
         assert!(self.list_curr.is_none(), "Nested list are not allowed!");
         self.list_curr = Some(id);
     }
@@ -38,7 +43,9 @@ impl Ui {
     fn label(&mut self, text: &str, pair: i16) {
         mv(self.row as i32, self.col as i32);
         attron(COLOR_PAIR(pair));
-        addstr(text);
+        if let Err(err) = addstr(text) {
+            eprintln!("Error writing text: {}", err);
+        }
         attroff(COLOR_PAIR(pair));
         self.row += 1;
     }
@@ -123,7 +130,7 @@ fn main() {
                 ui.label("-----------", REGULAR_PAIR);
                 ui.begin_list(todo_curr, "");
                 for (index, todo) in todos.iter().enumerate() {
-                    ui.list_element(&format!("- [ ] {}", todo), index);
+                    ui.list_element(&format!("- [ ] {}", todo), index, todo_curr);
                 }
                 ui.end_list();
             }
@@ -135,7 +142,7 @@ fn main() {
                 ui.label("-----------", REGULAR_PAIR);
                 ui.begin_list(done_curr, "");
                 for (index, done) in dones.iter().enumerate() {
-                    ui.list_element(&format!("- [x] {}", done), index);
+                    ui.list_element(&format!("- [x] {}", done), index, done_curr);
                 }
                 ui.end_list();
             }
@@ -147,11 +154,11 @@ fn main() {
         let key = getch();
         match key as u8 as char {
                 'q' => quit = true,
-                'j' => match tab {
+                'k' => match tab {
                     Tab::Todo => list_up(&mut todo_curr),
                     Tab::Done => list_up(&mut done_curr),
                 },
-                'k' => match tab {
+                'j' => match tab {
                     Tab::Todo => list_down(&todos, &mut todo_curr),
                     Tab::Done => list_down(&dones, &mut done_curr),
                 },
