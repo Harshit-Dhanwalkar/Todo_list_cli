@@ -24,26 +24,23 @@ impl Ui {
         self.list_curr = Some(id);
     }
 
-    fn list_element(&mut self, label: &str, id: Id) -> bool {
-        let id_curr = self.list_curr.expect("Not allowed to create list elements outside of list");
-
-        self.label(&format!(label), {
-            if todo_curr == index {
+    fn list_element(&mut self, label: &str, id: Id, id_curr: Id) -> bool {
+        self.label(&format!("{}", label), {
+            if id_curr == id {
                 HIGHLIGHT_PAIR
             } else {
                 REGULAR_PAIR
             }
         });
+        false
+    } 
 
-        return false;
-    }
-
-    fn label(&mut self, text: &str, pait: i16){
+    fn label(&mut self, text: &str, pair: i16) {
         mv(self.row as i32, self.col as i32);
         attron(COLOR_PAIR(pair));
         addstr(text);
         attroff(COLOR_PAIR(pair));
-        self.row +=1;
+        self.row += 1;
     }
 
     fn end_list(&mut self) {
@@ -77,14 +74,19 @@ fn list_down(list: &Vec<String>, list_curr: &mut usize) {
     }
 }
 
-fn list_transfer(list_dst: &mut Vec<String>, list_curr: &mut Vec<String>, list_scr_curr: &mut usize){
+fn list_transfer(
+    list_dst: &mut Vec<String>,
+    list_src: &mut Vec<String>,
+    list_src_curr: &mut usize,
+) {
     if *list_src_curr < list_src.len() {
-        list_dst.push(list_src.remove(list_src_curr));
-        if *list list_src_curr >= list_src.len() && list_src.len() > 0 {
+        list_dst.push(list_src.remove(*list_src_curr));
+        if *list_src_curr >= list_src.len() && !list_src.is_empty() {
             *list_src_curr = list_src.len() - 1;
         }
     }
 }
+
 
 
 fn main() {
@@ -107,7 +109,7 @@ fn main() {
         "car".to_string(),
         "man".to_string()
     ];
-    let mut done_current: usize = 0;
+    let mut done_curr: usize = 0;
     let mut tab = Tab::Todo;
 
     let mut ui = Ui::default();
@@ -115,55 +117,54 @@ fn main() {
         erase();
  //       clear(); // Clear the screen before redrawing
         ui.begin(0, 0);
-        {
+        match tab {
             Tab::Todo => {
                 ui.label("[TODO] DONE", REGULAR_PAIR);
                 ui.label("-----------", REGULAR_PAIR);
-                ui.begin_list(todo_curr);
+                ui.begin_list(todo_curr, "");
                 for (index, todo) in todos.iter().enumerate() {
                     ui.list_element(&format!("- [ ] {}", todo), index);
                 }
                 ui.end_list();
             }
-        },
 
             //ui.label("------------------------------", REGULAR_PAIR);
 
-        {
             Tab::Done => {
                 ui.label(" TODO [DONE]", REGULAR_PAIR);
                 ui.label("-----------", REGULAR_PAIR);
-                ui.begin_list(done_curr);
+                ui.begin_list(done_curr, "");
                 for (index, done) in dones.iter().enumerate() {
                     ui.list_element(&format!("- [x] {}", done), index);
                 }
                 ui.end_list();
             }
-        },
+        }
         ui.end();
 
         refresh();
 
         let key = getch();
         match key as u8 as char {
-            'q' => quit = true,
-            'j' => match tab {
+                'q' => quit = true,
+                'j' => match tab {
                     Tab::Todo => list_up(&mut todo_curr),
                     Tab::Done => list_up(&mut done_curr),
-            }
-            'k' => match tab {
+                },
+                'k' => match tab {
                     Tab::Todo => list_down(&todos, &mut todo_curr),
                     Tab::Done => list_down(&dones, &mut done_curr),
-
-            }
-            '\n' => match tab {
-                Tab::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
+                },
+                '\n' => match tab {
+                    Tab::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
+                    Tab::Done => list_transfer(&mut todos, &mut dones, &mut done_curr),
+                },
+            // '\n' => match tab {
                 // if todo_curr < todos.len() {
                 //     dones.push(todo.remove(todo_curr));
                 //     if todo_curr >= todos.len() && todos.en() > 0 {
                 //         todo_curr = todos.len() - 1;
                 //     }
-                Tab::Done => list_transfer(&mut todos, &mut dones, &mut done_curr),
                 // if done_curr < dones.len() {
                 //     todos.push(dones.remove(done_curr));
                 //     if done_curr >= dones.len() && dones.en() > 0 {
@@ -171,10 +172,10 @@ fn main() {
                 //     }
                 // }
                     //dones.push(todos[todo_curr].clone());
-            }
-            '\t' => {
-                tab = tab.toggle();
-            }
+            // }
+                '\t' => {
+                    tab = tab.toggle();
+                }
             _ => {} // if none of above key matches..then do nothing
         }
     }
